@@ -1,65 +1,77 @@
+// utils/supabase/middleware.ts
+
+/**
+ * This file provides a function to update the session within a Next.js middleware.
+ * By default, Next.js middleware runs in an Edge environment, but we can still
+ * use @supabase/ssr with careful cookie handling below.
+ */
+
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+/**
+ * updateSession() uses Supabase to check the user's auth state in the middleware layer.
+ * - We read/write cookies from the request/response to maintain session.
+ */
 export async function updateSession(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request,
-  })
+  // NextResponse.next() builds a response that continues the request flow.
+  // We must pass the request object for correct cookie management.
+  let supabaseResponse = NextResponse.next({ request })
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
+  try {
+    // This createServerClient is specialized for the Next.js "middleware" environment.
+    // We do manual cookie operations to ensure everything is in sync.
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          // Reading cookies from the request
+          getAll() {
+            return request.cookies.getAll()
+          },
+          // Writing cookies to the response
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              // Update the request cookies first
+              request.cookies.set(name, value)
+            })
+
+            // Re-create the response to ensure it has the updated cookie state
+            supabaseResponse = NextResponse.next({ request })
+
+            // Write cookies to the response
+            cookiesToSet.forEach(({ name, value, options }) => {
+              supabaseResponse.cookies.set(name, value, options)
+            })
+          },
         },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
-          supabaseResponse = NextResponse.next({
-            request,
-          })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          )
-        },
-      },
+      }
+    )
+
+    // IMPORTANT: Immediately after creating the supabase client, we call .auth.getUser()
+    // without other logic that might break or confuse session handling.
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser()
+
+    // Log any potential error from Supabase (e.g., network issues)
+    if (userError) {
+      console.error('[Middleware - getUser] Supabase error:', userError)
     }
-  )
 
-  // Do not run code between createServerClient and
-  // supabase.auth.getUser(). A simple mistake could make it very hard to debug
-  // issues with users being randomly logged out.
-
-  // IMPORTANT: DO NOT REMOVE auth.getUser()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (
-    !user &&
-    !request.nextUrl.pathname.startsWith('/login') &&
-    !request.nextUrl.pathname.startsWith('/auth')
-  ) {
-    // no user, potentially respond by redirecting the user to the login page
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
+    // If user is not logged in and isn't accessing a public route (e.g., /login), redirect to /login
+    if (!user && !request.nextUrl.pathname.startsWith('/login')) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/login'
+      return NextResponse.redirect(url)
+    }
+  } catch (error) {
+    // Generic catch-all for unexpected issues in the middleware
+    console.error('[Middleware] Unexpected error in updateSession:', error)
   }
 
-  // IMPORTANT: You *must* return the supabaseResponse object as it is.
-  // If you're creating a new response object with NextResponse.next() make sure to:
-  // 1. Pass the request in it, like so:
-  //    const myNewResponse = NextResponse.next({ request })
-  // 2. Copy over the cookies, like so:
-  //    myNewResponse.cookies.setAll(supabaseResponse.cookies.getAll())
-  // 3. Change the myNewResponse object to fit your needs, but avoid changing
-  //    the cookies!
-  // 4. Finally:
-  //    return myNewResponse
-  // If this is not done, you may be causing the browser and server to go out
-  // of sync and terminate the user's session prematurely!
-
+  // Return the response object with cookies updated by Supabase
   return supabaseResponse
 }

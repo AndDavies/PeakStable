@@ -1,93 +1,62 @@
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from "@/components/ui/card";
+// app/dashboard/page.tsx
 
-export default function DashboardPage() {
-  return (
-    <div className="space-y-12 bg-gray-50 min-h-screen w-full flex flex-col p-4 sm:p-8">
-      {/* Welcome Section */}
-      <div className="space-y-2">
-        <h1 className="text-3xl font-semibold text-gray-800">
-          Welcome, Michael!
-        </h1>
-        <p className="text-sm text-gray-600">
-          Track your progress, view today's workout, manage programs, and stay on top of your goals.
-        </p>
-      </div>
+/**
+ * This DashboardPage is a Next.js Server Component. 
+ * We fetch secure Supabase data here before rendering.
+ */
 
-      {/* Cards: Grid layout */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-        {/* Card 1 */}
-        <Card className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow rounded-lg">
-          <CardHeader>
-            <CardTitle className="text-gray-800">My Upcoming Classes</CardTitle>
-            <CardDescription className="text-gray-600">
-              No upcoming classes
-            </CardDescription>
-          </CardHeader>
-        </Card>
+import { createClient } from '@/utils/supabase/server'
+import { redirect } from 'next/navigation'
 
-        {/* Card 2 */}
-        <Card className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow rounded-lg">
-          <CardHeader>
-            <CardTitle className="text-gray-800">Goal Tracker</CardTitle>
-            <CardDescription className="text-gray-600">
-              Monitor progress towards personal records.
-            </CardDescription>
-          </CardHeader>
-        </Card>
+// Make the component async because we need to await createClient() and any subsequent data fetching.
+export default async function DashboardPage() {
+  try {
+    // 1) Await the creation of the Supabase client. 
+    //    createClient() is async in Next.js 15 due to cookies() being async.
+    const supabase = await createClient()
 
-        {/* Card 3 */}
-        <Card className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow rounded-lg">
-          <CardHeader>
-            <CardTitle className="text-gray-800">Programs Marketplace</CardTitle>
-            <CardDescription className="text-gray-600">
-              Explore and purchase new training programs.
-            </CardDescription>
-          </CardHeader>
-        </Card>
+    // 2) Fetch the current session. 
+    //    Now we can call supabase.auth.*, because supabase is no longer a Promise.
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession()
 
-        {/* Card 4 */}
-        <Card className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow rounded-lg">
-          <CardHeader>
-            <CardTitle className="text-gray-800">Recently Logged Workouts</CardTitle>
-            <CardDescription className="text-gray-600">
-              View a snapshot of your latest sessions.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
+    if (sessionError) {
+      console.error('[DashboardPage] Error getting session:', sessionError)
+    }
 
-      {/* Calendar Section */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-        <Card className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow rounded-lg">
-          <CardHeader>
-            <CardTitle className="text-gray-800">Workout Calendar</CardTitle>
-            <CardDescription className="text-gray-600">
-              View your scheduled workouts for the week.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-sm text-gray-500">[Calendar placeholder...]</div>
-          </CardContent>
-        </Card>
+    // 3) If there's no session, optionally redirect to /login (the middleware should handle this too).
+    // if (!session) {
+    //   redirect('/login')
+    // }
 
-        <Card className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow rounded-lg">
-          <CardHeader>
-            <CardTitle className="text-gray-800">Classes Calendar</CardTitle>
-            <CardDescription className="text-gray-600">
-              Upcoming gym classes & events.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-sm text-gray-500">[Classes calendar placeholder...]</div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
+    // 4) Fetch profile data for the logged-in user.
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('first_name, profile_picture')
+      .eq('user_id', session?.user?.id)
+      .single()
+
+    if (profileError) {
+      console.error('[DashboardPage] Error fetching profile:', profileError)
+      return <div>Error loading profile.</div>
+    }
+
+    // 5) Render the UI with the fetched data.
+    return (
+      <section>
+        <h1>Welcome, {profile?.first_name}!</h1>
+        <img 
+          src={profile?.profile_picture || '/default-avatar.png'} 
+          alt="User avatar" 
+          style={{ width: '100px', height: '100px', objectFit: 'cover' }}
+        />
+      </section>
+    )
+  } catch (error) {
+    // Handle any unexpected errors in the server component
+    console.error('[DashboardPage] Unexpected Error:', error)
+    return <div>Something went wrong. Please try again.</div>
+  }
 }

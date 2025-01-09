@@ -15,20 +15,20 @@ export async function login(formData: FormData) {
     password: formData.get('password') as string,
   }
 
-  console.log("Login data:", data);
+  //console.log("Login data:", data);
 
   const { error } = await supabase.auth.signInWithPassword(data)
 
   if (error) {
-    console.error("Login error:", error);
+    //console.error("Login error:", error);
     redirect('/error')
   }
 
-  console.log("Login successful");
+  //console.log("Login successful");
 
   revalidatePath('/', 'layout')
-  console.log("Revalidating path '/'");
-  console.log("Redirecting to dashboard");
+  // console.log("Revalidating path '/'");
+  // console.log("Redirecting to dashboard");
   redirect('/dashboard')
 }
 
@@ -44,19 +44,19 @@ export async function signup(formData: FormData) {
     password: formData.get('password') as string,
   }
 
-  console.log("Signup data:", data);
+  //console.log("Signup data:", data);
 
   const { error } = await supabase.auth.signUp(data)
 
   if (error) {
-    console.error("Signup error:", error);
+    //console.error("Signup error:", error);
     redirect('/error')
   }
 
-  console.log("Signup successful");
+  // console.log("Signup successful");
 
   revalidatePath('/', 'layout')
-  console.log("Revalidating path '/'");
-  console.log("Redirecting to home page");
+  // console.log("Revalidating path '/'");
+  // console.log("Redirecting to home page");
   redirect('/')
 }
