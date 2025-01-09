@@ -1,9 +1,13 @@
 "use client"
 /**
- * app/dashboard/classes/ClassRegistrationDrawer.tsx
+ * ClassRegistrationDrawer.tsx
  *
- * A client component for registering or waitlisting a user for a class schedule.
- * We import `supabaseBrowserClient` from `utils/supabase/client.ts`.
+ * Receives:
+ *   - isOpen: whether the drawer is visible
+ *   - onClose: function to close the drawer
+ *   - classSchedule: the class details
+ *   - currentUserId: user ID passed from SSR
+ *   - refreshSchedules: function to re-fetch classes in ClassCalendar
  */
 
 import React, { useEffect, useState } from 'react'
@@ -19,64 +23,60 @@ type ClassSchedule = {
 }
 
 interface ClassRegistrationDrawerProps {
-  /**
-   * The parent component will set this to `true` when the drawer should be open,
-   * and `false` when it's closed.
-   */
   isOpen: boolean
-
-  /** Callback to close/hide the drawer. */
   onClose: () => void
-
-  /** The class schedule details the user is interacting with. */
   classSchedule: ClassSchedule
-
-  /**
-   * Optional: If you had a function to refresh the schedules in the parent,
-   * you can pass it here. (Include if you want to call it after register/cancel.)
-   */
-  refreshSchedules?: () => void
+  currentUserId: string
+  refreshSchedules: () => void
 }
 
 export default function ClassRegistrationDrawer({
   isOpen,
   onClose,
   classSchedule,
+  currentUserId,
   refreshSchedules,
 }: ClassRegistrationDrawerProps) {
   const [loading, setLoading] = useState(false)
   const [confirmedCount, setConfirmedCount] = useState<number | null>(null)
   const [userStatus, setUserStatus] = useState<'confirmed' | 'waitlisted' | 'none'>('none')
 
-  // Run these effects when the drawer is opened (and we actually have a classSchedule).
+  // When the drawer opens, fetch counts and user's status
   useEffect(() => {
-    if (classSchedule && isOpen) {
+    if (isOpen && classSchedule) {
       fetchConfirmedCount()
       fetchUserStatus()
     }
-  }, [classSchedule, isOpen])
+  }, [isOpen, classSchedule])
 
+  /**
+   * 1) fetchConfirmedCount
+   *    How many are confirmed for this class?
+   */
   async function fetchConfirmedCount() {
-    const { data, error } = await supabaseBrowserClient
-      .from('class_registrations')
-      .select('id', { count: 'exact' })
-      .eq('class_schedule_id', classSchedule.id)
-      .eq('status', 'confirmed')
+    try {
+      const { data, error } = await supabaseBrowserClient
+        .from('class_registrations')
+        .select('id', { count: 'exact' })
+        .eq('class_schedule_id', classSchedule.id)
+        .eq('status', 'confirmed')
 
-    if (!error && data) {
-      setConfirmedCount(data.length)
+      if (!error && data) {
+        setConfirmedCount(data.length)
+      }
+    } catch (err) {
+      console.error('fetchConfirmedCount error:', err)
     }
   }
 
+  /**
+   * 2) fetchUserStatus
+   *    Check if currentUserId is 'confirmed', 'waitlisted', or 'none'
+   */
   async function fetchUserStatus() {
     try {
-      const {
-        data: { user },
-        error: authError,
-      } = await supabaseBrowserClient.auth.getUser()
-
-      if (authError || !user) {
-        console.error('Auth error or no user found:', authError)
+      if (!currentUserId) {
+        setUserStatus('none')
         return
       }
 
@@ -84,10 +84,11 @@ export default function ClassRegistrationDrawer({
         .from('class_registrations')
         .select('status')
         .eq('class_schedule_id', classSchedule.id)
-        .eq('user_profile_id', user.id)
+        .eq('user_profile_id', currentUserId)
         .single()
 
       if (error) {
+        // Not found => user not registered
         setUserStatus('none')
       } else if (data?.status === 'confirmed') {
         setUserStatus('confirmed')
@@ -97,10 +98,15 @@ export default function ClassRegistrationDrawer({
         setUserStatus('none')
       }
     } catch (err) {
-      console.error('fetchUserStatus: Unexpected error:', err)
+      console.error('fetchUserStatus error:', err)
     }
   }
 
+  /**
+   * 3) handleRegister
+   *    POST /api/classes/register => sets user status to confirmed or waitlisted,
+   *    then refreshSchedules to update the parent calendar.
+   */
   async function handleRegister() {
     setLoading(true)
     try {
@@ -112,19 +118,26 @@ export default function ClassRegistrationDrawer({
 
       const result = await res.json()
       if (res.ok) {
-        setUserStatus(result.status)
-        refreshSchedules?.() // If a refresh function was provided, call it
-        fetchConfirmedCount() // update local display
+        setUserStatus(result.status)  // 'confirmed' or 'waitlisted'
+        // Refresh the main calendar to update displayed counts
+        refreshSchedules()
+        // Also refresh local count
+        fetchConfirmedCount()
       } else {
         alert(result.error || 'Failed to register.')
       }
     } catch (err) {
-      console.error('handleRegister: Unexpected error:', err)
+      console.error('handleRegister error:', err)
     } finally {
       setLoading(false)
     }
   }
 
+  /**
+   * 4) handleCancel
+   *    POST /api/classes/cancel => removes user registration,
+   *    then refreshSchedules to update the parent calendar.
+   */
   async function handleCancel() {
     setLoading(true)
     try {
@@ -137,25 +150,23 @@ export default function ClassRegistrationDrawer({
       const result = await res.json()
       if (res.ok) {
         setUserStatus('none')
-        refreshSchedules?.()
+        refreshSchedules()
         fetchConfirmedCount()
       } else {
-        alert(result.error || 'Failed to cancel.')
+        alert(result.error || 'Failed to cancel registration.')
       }
     } catch (err) {
-      console.error('handleCancel: Unexpected error:', err)
+      console.error('handleCancel error:', err)
     } finally {
       setLoading(false)
     }
   }
 
+  // Spots available if confirmedCount < max_participants
   const spotsAvailable =
     confirmedCount !== null && confirmedCount < classSchedule.max_participants
 
-  /**
-   * If the drawer is not open, we can return null or do any other "closed" logic.
-   * This ensures it won't render in the DOM at all unless open.
-   */
+  // If the drawer is not open, don't render
   if (!isOpen) return null
 
   return (
@@ -173,17 +184,22 @@ export default function ClassRegistrationDrawer({
           {classSchedule.start_time
             ? new Date(classSchedule.start_time).toLocaleString()
             : 'No start time'}
+          {' '} - {' '}
+          {classSchedule.end_time
+            ? new Date(classSchedule.end_time).toLocaleString()
+            : 'No end time'}
         </p>
+
         {confirmedCount !== null && (
-          <p>
+          <p className="mt-1">
             {confirmedCount} / {classSchedule.max_participants} confirmed
           </p>
         )}
 
-        {/* Registration Logic */}
-        {userStatus === 'none' && (
-          <div className="mt-4">
-            {spotsAvailable ? (
+        <div className="mt-4 space-y-3">
+          {/* If user not registered, show register/waitlist button */}
+          {userStatus === 'none' && (
+            spotsAvailable ? (
               <button
                 onClick={handleRegister}
                 disabled={loading}
@@ -197,37 +213,39 @@ export default function ClassRegistrationDrawer({
                 disabled={loading}
                 className="bg-pink-500 text-white px-3 py-1 rounded"
               >
-                {loading ? 'Joining Waitlist...' : 'Join Waitlist'}
+                {loading ? 'Joining waitlist...' : 'Join Waitlist'}
               </button>
-            )}
-          </div>
-        )}
+            )
+          )}
 
-        {userStatus === 'confirmed' && (
-          <div className="mt-4">
-            <p className="mb-2 text-green-600">You are confirmed!</p>
-            <button
-              onClick={handleCancel}
-              disabled={loading}
-              className="bg-red-500 text-white px-3 py-1 rounded"
-            >
-              {loading ? 'Cancelling...' : 'Cancel Registration'}
-            </button>
-          </div>
-        )}
+          {/* If confirmed, show cancel button */}
+          {userStatus === 'confirmed' && (
+            <div>
+              <p className="text-green-600 mb-2">You are confirmed!</p>
+              <button
+                onClick={handleCancel}
+                disabled={loading}
+                className="bg-red-500 text-white px-3 py-1 rounded"
+              >
+                {loading ? 'Cancelling...' : 'Cancel Registration'}
+              </button>
+            </div>
+          )}
 
-        {userStatus === 'waitlisted' && (
-          <div className="mt-4">
-            <p className="mb-2 text-gray-600">You are waitlisted.</p>
-            <button
-              onClick={handleCancel}
-              disabled={loading}
-              className="bg-red-500 text-white px-3 py-1 rounded"
-            >
-              {loading ? 'Cancelling...' : 'Cancel Registration'}
-            </button>
-          </div>
-        )}
+          {/* If waitlisted, show cancel button */}
+          {userStatus === 'waitlisted' && (
+            <div>
+              <p className="text-gray-600 mb-2">You are waitlisted.</p>
+              <button
+                onClick={handleCancel}
+                disabled={loading}
+                className="bg-red-500 text-white px-3 py-1 rounded"
+              >
+                {loading ? 'Cancelling...' : 'Cancel Waitlist'}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
