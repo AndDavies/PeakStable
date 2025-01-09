@@ -1,12 +1,13 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { createClient } from "@/utils/supabase/client"
+import { supabaseBrowserClient } from "@/utils/supabase/client"
 import { useState } from "react"
 
 export default function DashboardHeader() {
   const router = useRouter()
-  const supabase = createClient()
+  // We now reference the named export from client.ts
+  const supabase = supabaseBrowserClient
   const [loading, setLoading] = useState(false)
 
   async function handleSignOut() {
