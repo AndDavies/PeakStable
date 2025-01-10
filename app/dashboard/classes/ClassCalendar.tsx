@@ -17,14 +17,12 @@ type ClassSchedule = {
 
 interface CalendarProps {
   schedules: ClassSchedule[]
-  userRole: string
   currentGymId: string
   userId: string
 }
 
 export default function ClassCalendar({
   schedules,
-  userRole,
   currentGymId,
   userId,
 }: CalendarProps) {

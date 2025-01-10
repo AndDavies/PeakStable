@@ -6,7 +6,7 @@
  */
 
 import { createClient } from '@/utils/supabase/server'
-import { redirect } from 'next/navigation'
+
 
 // Make the component async because we need to await createClient() and any subsequent data fetching.
 export default async function DashboardPage() {

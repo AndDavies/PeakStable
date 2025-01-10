@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Delete or mark the registration as canceled
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('class_registrations')
       .delete()
       .eq('class_schedule_id', class_schedule_id)
