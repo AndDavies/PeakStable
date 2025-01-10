@@ -124,7 +124,6 @@ export default async function ClassesPage() {
       <div className="mt-6">
         <ClassCalendar
           schedules={schedules}
-          userRole={userRole}
           currentGymId={currentGymId}
           userId={userId}
         />
