@@ -11,7 +11,7 @@
  */
 
 import { createClient } from '@/utils/supabase/server'
-import { format, startOfWeek, addDays } from 'date-fns'
+import { startOfWeek, addDays } from 'date-fns'
 import Link from 'next/link'
 import ClassCalendar from './ClassCalendar'
 
