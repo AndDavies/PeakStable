@@ -6,6 +6,7 @@
  */
 
 import { createClient } from '@/utils/supabase/server'
+import Image from 'next/image'
 
 
 // Make the component async because we need to await createClient() and any subsequent data fetching.
@@ -47,11 +48,13 @@ export default async function DashboardPage() {
     return (
       <section>
         <h1>Welcome, {profile?.first_name}!</h1>
-        <img 
-          src={profile?.profile_picture || '/default-avatar.png'} 
-          alt="User avatar" 
-          style={{ width: '100px', height: '100px', objectFit: 'cover' }}
-        />
+        <Image
+        src="/dashboard_image.png"
+        alt="Dashboard Image"
+        width={800}
+        height={600}
+        className="w-full h-auto"
+      />
       </section>
     )
   } catch (error) {
