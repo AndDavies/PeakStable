@@ -1,76 +1,73 @@
 import type { Config } from "tailwindcss";
 
 export default {
-    darkMode: ["class"],
-    content: [
+  darkMode: ["class"],
+  content: [
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
-  	extend: {
-  		colors: {
-  			primary: {
-  				DEFAULT: 'hsl(var(--primary))',
-  				foreground: 'hsl(var(--primary-foreground))'
-  			},
-  			secondary: {
-  				DEFAULT: 'hsl(var(--secondary))',
-  				foreground: 'hsl(var(--secondary-foreground))'
-  			},
-  			accentGreen: '#32CD32',
-  			accentPink: '#FF69B4',
-  			background: 'hsl(var(--background))',
-  			foreground: 'hsl(var(--foreground))',
-  			card: {
-  				DEFAULT: 'hsl(var(--card))',
-  				foreground: 'hsl(var(--card-foreground))'
-  			},
-  			popover: {
-  				DEFAULT: 'hsl(var(--popover))',
-  				foreground: 'hsl(var(--popover-foreground))'
-  			},
-  			muted: {
-  				DEFAULT: 'hsl(var(--muted))',
-  				foreground: 'hsl(var(--muted-foreground))'
-  			},
-  			accent: {
-  				DEFAULT: 'hsl(var(--accent))',
-  				foreground: 'hsl(var(--accent-foreground))'
-  			},
-  			destructive: {
-  				DEFAULT: 'hsl(var(--destructive))',
-  				foreground: 'hsl(var(--destructive-foreground))'
-  			},
-  			border: 'hsl(var(--border))',
-  			input: 'hsl(var(--input))',
-  			ring: 'hsl(var(--ring))',
-  			chart: {
-  				'1': 'hsl(var(--chart-1))',
-  				'2': 'hsl(var(--chart-2))',
-  				'3': 'hsl(var(--chart-3))',
-  				'4': 'hsl(var(--chart-4))',
-  				'5': 'hsl(var(--chart-5))'
-  			}
-  		},
-  		fontFamily: {
-  			sans: [
-  				'Inter',
-  				'Roboto',
-  				'Open Sans',
-  				'sans-serif'
-  			],
-  			graffiti: [
-  				'Urbanist',
-  				'sans-serif'
-  			]
-  		},
-  		borderRadius: {
-  			lg: 'var(--radius)',
-  			md: 'calc(var(--radius) - 2px)',
-  			sm: 'calc(var(--radius) - 4px)'
-  		}
-  	}
+    extend: {
+      colors: {
+        primary: {
+          DEFAULT: '#333333', // Dark grey
+          foreground: '#FFFFFF' // White
+        },
+        secondary: {
+          DEFAULT: '#666666', // Light grey
+          foreground: '#FFFFFF' // White
+        },
+        accent: {
+          DEFAULT: '#FF69B4', // Pink
+          foreground: '#FFFFFF' // White
+        },
+        background: '#F5F5F5', // Off-white
+        foreground: '#000000', // Black
+        card: {
+          DEFAULT: '#444444', // Darker grey
+          foreground: '#FFFFFF' // White
+        },
+        popover: {
+          DEFAULT: '#555555', // Medium grey
+          foreground: '#FFFFFF' // White
+        },
+        muted: {
+          DEFAULT: '#777777', // Muted grey
+          foreground: '#FFFFFF' // White
+        },
+        destructive: {
+          DEFAULT: '#FF0000', // Red
+          foreground: '#FFFFFF' // White
+        },
+        border: '#CCCCCC', // Light grey
+        input: '#DDDDDD', // Very light grey
+        ring: '#FF69B4', // Pink
+        chart: {
+          '1': '#FF69B4', // Pink
+          '2': '#333333', // Dark grey
+          '3': '#666666', // Light grey
+          '4': '#444444', // Darker grey
+          '5': '#555555' // Medium grey
+        }
+      },
+      fontFamily: {
+        sans: [
+          'Poppins', // Modern and bold
+          'Roboto', // Clean and professional
+          'sans-serif'
+        ],
+        graffiti: [
+          'Urbanist',
+          'sans-serif'
+        ]
+      },
+      borderRadius: {
+        lg: 'var(--radius)',
+        md: 'calc(var(--radius) - 2px)',
+        sm: 'calc(var(--radius) - 4px)'
+      }
+    }
   },
   plugins: [require("tailwindcss-animate")],
 } satisfies Config;

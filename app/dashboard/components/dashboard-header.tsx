@@ -3,10 +3,11 @@
 import { useRouter } from "next/navigation"
 import { supabaseBrowserClient } from "@/utils/supabase/client"
 import { useState } from "react"
+import { NavigationMenu, NavigationMenuItem, NavigationMenuLink, NavigationMenuList } from "@/components/ui/navigation-menu"
+
 
 export default function DashboardHeader() {
   const router = useRouter()
-  // We now reference the named export from client.ts
   const supabase = supabaseBrowserClient
   const [loading, setLoading] = useState(false)
 
@@ -24,11 +25,11 @@ export default function DashboardHeader() {
   return (
     <header
       className="
-        w-full border-b border-gray-200 
-        bg-white text-gray-800 
+        w-full border-b border-gray-700
+        bg-gray-900 text-gray-200
         px-6 py-4 sm:px-8 
         flex items-center justify-between
-        shadow-sm
+        shadow-md
       "
     >
       {/* Logo / Branding */}
@@ -36,40 +37,44 @@ export default function DashboardHeader() {
         <img
           src="/peakmetrix_logo.png"
           alt="PeakMetrix Logo"
-          className="h-24 w-auto" /* Adjusted for better alignment */
+          className="h-24 w-auto" 
+          /* Adjust height to fit your new dark theme design */
         />
-        
       </div>
 
       {/* Nav links */}
-      <nav className="hidden sm:flex space-x-8 text-sm font-medium">
-        <a
-          href="/dashboard"
-          className="hover:text-accentPink transition-colors"
-        >
-          Home
-        </a>
-        <a
-          href="/dashboard/classes"
-          className="hover:text-accentPink transition-colors"
-        >
-          Classes
-        </a>
-        <a
-          href="/dashboard/workouts"
-          className="hover:text-accentPink transition-colors"
-        >
-          Workouts
-        </a>
-      </nav>
+      <NavigationMenu>
+        <NavigationMenuList className="hidden sm:flex space-x-6 text-sm font-medium">
+          <NavigationMenuItem>
+            <NavigationMenuLink href="/dashboard" className="transition-colors hover:text-pink-400">
+              Home
+            </NavigationMenuLink>
+          </NavigationMenuItem>
+          <NavigationMenuItem>
+            <NavigationMenuLink href="/dashboard/plans" className="transition-colors hover:text-pink-400">
+              Program Calendar
+            </NavigationMenuLink>
+          </NavigationMenuItem>
+          <NavigationMenuItem>
+            <NavigationMenuLink href="/dashboard/classes" className="transition-colors hover:text-pink-400">
+              Classes
+            </NavigationMenuLink>
+          </NavigationMenuItem>
+          <NavigationMenuItem>
+            <NavigationMenuLink href="/dashboard/workout-builder" className="transition-colors hover:text-pink-400">
+              Workout Builder
+            </NavigationMenuLink>
+          </NavigationMenuItem>
+        </NavigationMenuList>
+      </NavigationMenu>
 
       {/* User Info + Logout */}
       <div className="flex items-center space-x-6">
         {/* User Avatar */}
         <div className="flex items-center space-x-2">
-          <span className="text-sm text-gray-600">Michael</span>
-          <div className="h-8 w-8 bg-gray-100 rounded-full flex items-center justify-center">
-            <span className="text-sm font-medium text-gray-800">M</span>
+          <span className="text-sm text-gray-300">Michael</span>
+          <div className="h-8 w-8 bg-gray-700 rounded-full flex items-center justify-center">
+            <span className="text-sm font-medium text-gray-100">M</span>
           </div>
         </div>
 
@@ -78,11 +83,12 @@ export default function DashboardHeader() {
           onClick={handleSignOut}
           disabled={loading}
           className="
-            bg-accentPink hover:brightness-110 
-            text-white px-4 py-2 
+            bg-pink-600 hover:bg-pink-500
+            text-gray-50 px-4 py-2 
             rounded-md font-medium
-            shadow-sm hover:shadow-md
             transition-all
+            focus:outline-none focus:ring-2 focus:ring-pink-400
+            disabled:opacity-50
           "
         >
           {loading ? "Logging Out..." : "Log Out"}

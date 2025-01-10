@@ -59,7 +59,27 @@ export async function signup(formData: FormData) {
 
   console.log("Profile inserted successfully");
 
-  // 3) If success, revalidate the page and redirect
+  // 3) Create default track for the user
+const trackName = `${firstName}'s Personal Track`;
+console.log("Creating default track for user:", signUpData.user.id);
+const { error: trackError } = await supabase
+.from("tracks")
+.insert({
+
+name: trackName,
+description: "Default personal track",
+is_public: false,
+user_id: signUpData.user.id,
+created_at: new Date().toISOString(),
+gym_id: null // Assuming gym_id is optional and can be null
+});
+
+if (trackError) {
+console.error("Track creation error:", trackError);
+return redirect("/error");
+}
+
+  // 4) If success, revalidate the page and redirect
   console.log("Revalidating path /signup");
   revalidatePath("/signup");
   console.log("Redirecting to success page");

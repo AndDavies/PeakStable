@@ -5,6 +5,9 @@
  * 1) Creates a Supabase server client (SSR).
  * 2) Fetches the user's session & weekly class schedules for the current gym.
  * 3) Passes the data (including userId) to the ClassCalendar client component.
+ *
+ * Updated for a dark theme & pink highlights. 
+ * We wrap the final return in a dark container with matching text.
  */
 
 import { createClient } from '@/utils/supabase/server'
@@ -38,10 +41,14 @@ export default async function ClassesPage() {
   }
   if (!session) {
     // In theory, your middleware should redirect, but just in case:
-    return <div>Please log in to view classes.</div>
+    return (
+      <div className="bg-gray-900 text-gray-200 min-h-screen p-8">
+        Please log in to view classes.
+      </div>
+    )
   }
 
-  // 3) Fetch user profile to confirm current_gym_id, role, etc.
+  // 3) Fetch user profile
   const { data: profileData } = await supabase
     .from('profiles')
     .select('role, current_gym_id')
@@ -50,7 +57,11 @@ export default async function ClassesPage() {
 
   if (!profileData?.current_gym_id) {
     console.log('No gym selected for user ID:', session.user.id)
-    return <div>Error: No gym selected in your profile.</div>
+    return (
+      <div className="bg-gray-900 text-gray-200 min-h-screen p-8">
+        Error: No gym selected in your profile.
+      </div>
+    )
   }
 
   const currentGymId = profileData.current_gym_id
@@ -62,7 +73,7 @@ export default async function ClassesPage() {
   const startOfCurrentWeek = startOfWeek(today, { weekStartsOn: 0 }) // Sunday
   const endOfCurrentWeek = addDays(startOfCurrentWeek, 7)
 
-  // 5) Fetch the class schedules for the current gym within this week range
+  // 5) Fetch the class schedules
   const { data: schedulesData, error: schedulesError } = await supabase
     .from('class_schedules')
     .select('id, class_name, start_time, end_time, max_participants, class_type_id')
@@ -74,10 +85,9 @@ export default async function ClassesPage() {
     console.error('[ClassesPage] Error fetching schedules:', schedulesError)
   }
 
-  // 6) Store schedules or fallback to empty array
   const schedules: ClassSchedule[] = schedulesData || []
 
-  // 7) Optionally compute confirmed_count server-side
+  // 6) Optionally compute confirmed_count
   const classIds = schedules.map((cls) => cls.id)
   if (classIds.length > 0) {
     const { data: regData, error: regError } = await supabase
@@ -98,26 +108,27 @@ export default async function ClassesPage() {
     }
   }
 
-  // 8) Render UI
+  // 7) Render UI in a dark container
   return (
-    <section className="p-4 space-y-4">
-      <h1 className="text-2xl font-bold">Classes</h1>
-      <p className="text-sm text-gray-500">
+    <section className="bg-gray-900 text-gray-200 min-h-screen p-6 space-y-4">
+      <h1 className="text-3xl font-extrabold">Classes</h1>
+      <p className="text-sm text-gray-400">
         Welcome to your weekly schedule. Select a class to register or manage.
       </p>
 
-      {/* Link back to main dashboard (optional) */}
-      <Link href="/dashboard" className="underline text-sm text-pink-600">
+      <Link href="/dashboard" className="underline text-pink-400 text-sm">
         &larr; Back to Dashboard
       </Link>
 
-      {/* Pass the fetched schedules, userRole, currentGymId, and userId to the client component */}
-      <ClassCalendar
-        schedules={schedules}
-        userRole={userRole}
-        currentGymId={currentGymId}
-        userId={userId}
-      />
+      {/* Pass data to ClassCalendar client component */}
+      <div className="mt-6">
+        <ClassCalendar
+          schedules={schedules}
+          userRole={userRole}
+          currentGymId={currentGymId}
+          userId={userId}
+        />
+      </div>
     </section>
   )
 }
