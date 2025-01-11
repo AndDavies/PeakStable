@@ -12,6 +12,10 @@ import {
 import ClassRegistrationDrawer from "./ClassRegistrationDrawer";
 import ClassWizardDrawer from "./ClassWizardDrawer";
 
+/**
+ * Interface for your 'class_schedules' records,
+ * including optional confirmed_count for display.
+ */
 interface ClassSchedule {
   id: string;
   class_name: string;
@@ -22,26 +26,23 @@ interface ClassSchedule {
   class_type_id?: string | null;
 }
 
+/**
+ * Props for the VerticalCalendar component.
+ * 'userRole' is no longer hardcoded; we accept the real role passed in from the parent.
+ */
 interface VerticalCalendarProps {
-  /** The initial set of schedules from SSR or otherwise */
   initialSchedules: ClassSchedule[];
-  /** Current user's gym ID (for reference if needed) */
   currentGymId: string;
-  /** The ID of the logged in user */
   userId: string;
-  /**
-   * The user's role, e.g. 'member', 'coach', or 'owner'.
-   * If role = 'member', we disable creation & drag
-   */
-  userRole: string;
+  userRole: string; // e.g. 'member', 'coach', 'owner'
 }
 
 /**
  * VerticalCalendar
  *
- * Shows a weekly calendar with time blocks. If user is not a member,
- * they can create classes or drag them around to update times.
- * Schedules are grouped by day, each day is a column, and times are rows.
+ * Renders a weekly time-based grid for classes. If userRole !== 'member',
+ * the user can drag-and-drop classes or create new ones. The code ensures
+ * no hooks are used inside loops, satisfying the Rules of Hooks.
  */
 export default function VerticalCalendar({
   initialSchedules,
@@ -49,24 +50,28 @@ export default function VerticalCalendar({
   userId,
   userRole,
 }: VerticalCalendarProps) {
-  // 1) State for current week's start, schedules, etc.
+  // 1) Define top-level Hooks (no loops/conditionals).
   const [weekStartDate, setWeekStartDate] = useState<Date>(
     startOfWeek(new Date(), { weekStartsOn: 0 })
   );
   const [schedules, setSchedules] = useState<ClassSchedule[]>(initialSchedules);
 
-  // For class registration drawer:
+  // For the registration drawer
   const [selectedClass, setSelectedClass] = useState<ClassSchedule | null>(null);
   const [isRegistrationOpen, setRegistrationOpen] = useState(false);
 
-  // For the wizard to create classes:
+  // For the “create classes” wizard
   const [isWizardOpen, setWizardOpen] = useState(false);
 
-  // 2) Utility to fetch schedules for the displayed week
+  /**
+   * 2) We define a callback to refresh schedules for the displayed week.
+   *    Use top-level useCallback, not in any loops or conditionals.
+   */
   const refreshSchedules = useCallback(async () => {
     try {
       const startISO = weekStartDate.toISOString();
       const endISO = addDays(weekStartDate, 7).toISOString();
+
       const res = await fetch(`/api/classes?start=${startISO}&end=${endISO}`);
       if (!res.ok) {
         console.error("[refreshSchedules] fetch error:", await res.text());
@@ -79,12 +84,15 @@ export default function VerticalCalendar({
     }
   }, [weekStartDate]);
 
-  // 3) useEffect to reload whenever weekStartDate changes
+  /**
+   * 3) useEffect top-level: once weekStartDate changes, we refresh.
+   *    No loops or conditionals around this hook.
+   */
   useEffect(() => {
     refreshSchedules();
   }, [refreshSchedules]);
 
-  // 4) Navigation
+  // 4) Utility functions for navigation
   function handlePreviousWeek() {
     setWeekStartDate((prev) => addDays(prev, -7));
   }
@@ -95,20 +103,21 @@ export default function VerticalCalendar({
     setWeekStartDate(startOfWeek(new Date(), { weekStartsOn: 0 }));
   }
 
-  // 5) When a class block is clicked, open registration drawer
+  // 5) Clicking a class => open the registration drawer
   function handleClassClick(cls: ClassSchedule) {
     setSelectedClass(cls);
     setRegistrationOpen(true);
   }
 
-  // 6) Drag & Drop logic: only active if userRole !== 'member'
+  // 6) DRAG & DROP: only active if userRole !== 'member'.
+  //    Hooks remain top-level; these are just event handlers.
   function onDragStart(e: React.DragEvent<HTMLDivElement>, cls: ClassSchedule) {
-    if (userRole === "member") return;
+    if (userRole === "member") return; // members can't drag
     e.dataTransfer.setData("text/plain", JSON.stringify(cls));
   }
 
   function onDragOver(e: React.DragEvent<HTMLDivElement>) {
-    // Only allow drop if user is not a member
+    // Only allow if user is not 'member'
     if (userRole !== "member") {
       e.preventDefault();
     }
@@ -117,41 +126,37 @@ export default function VerticalCalendar({
   async function onDrop(e: React.DragEvent<HTMLDivElement>, dayIndex: number) {
     if (userRole === "member") return;
     e.preventDefault();
+    const data = e.dataTransfer.getData("text/plain");
+    if (!data) return;
+    const cls: ClassSchedule = JSON.parse(data);
 
-    const raw = e.dataTransfer.getData("text/plain");
-    if (!raw) return;
-    const cls: ClassSchedule = JSON.parse(raw);
-
-    // Calculate new start/end
+    // Calc new start time
     const boundingRect = (e.target as HTMLElement).getBoundingClientRect();
     const offsetY = e.clientY - boundingRect.top;
-    // 1px => 1 minute
     const DAY_START_HOUR = 5;
     const minutesFromStart = Math.floor(offsetY);
     const newStart = addMinutes(
       weekStartDate,
       dayIndex * 1440 + DAY_START_HOUR * 60 + minutesFromStart
     );
-
+    // Keep same duration
     const oldStart = parseISO(cls.start_time);
     const oldEnd = parseISO(cls.end_time);
     const duration = differenceInMinutes(oldEnd, oldStart);
     const newEnd = addMinutes(newStart, duration);
 
-    // Make a PUT request to update class schedule
-    const payload = {
-      classId: cls.id,
-      startTime: newStart.toISOString(),
-      endTime: newEnd.toISOString(),
-    };
     try {
       const res = await fetch("/api/classes", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          classId: cls.id,
+          startTime: newStart.toISOString(),
+          endTime: newEnd.toISOString(),
+        }),
       });
       if (!res.ok) {
-        console.error("[onDrop] error:", await res.text());
+        console.error("[onDrop] update error:", await res.text());
         return;
       }
       refreshSchedules();
@@ -160,7 +165,7 @@ export default function VerticalCalendar({
     }
   }
 
-  // 7) Create 30-min time labels
+  // 7) Build time labels (30-min increments) for the left axis
   const DAY_START_HOUR = 5;
   const DAY_END_HOUR = 22;
   const TOTAL_MINUTES = (DAY_END_HOUR - DAY_START_HOUR) * 60;
@@ -172,22 +177,14 @@ export default function VerticalCalendar({
   }
   timeLabels.push(`${DAY_END_HOUR}:00`);
 
-  // 8) Filter schedules to the displayed week
+  // 8) Filter schedules for the current displayed week
   const displayed = schedules.filter((s) => {
     const st = parseISO(s.start_time);
     return isValid(st) && st >= weekStartDate && st < addDays(weekStartDate, 7);
   });
 
-  // 9) Group schedules by day index (0..6)
-  const groupedByDay: Record<number, ClassSchedule[]> = {
-    0: [],
-    1: [],
-    2: [],
-    3: [],
-    4: [],
-    5: [],
-    6: [],
-  };
+  // 9) Group by day index 0..6, but do not define hooks here
+  const groupedByDay: Record<number, ClassSchedule[]> = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
   displayed.forEach((cls) => {
     const st = parseISO(cls.start_time);
     const dayDiff = Math.floor(differenceInMinutes(st, weekStartDate) / (60 * 24));
@@ -198,16 +195,24 @@ export default function VerticalCalendar({
 
   return (
     <div className="space-y-4">
-      {/*  WEEK NAVIGATION */}
+      {/*  WEEK NAVIGATION  */}
       <div className="flex items-center justify-between">
-        <button onClick={handlePreviousWeek} className="bg-gray-700 text-white px-3 py-1 rounded text-sm">
+        <button
+          onClick={handlePreviousWeek}
+          className="bg-gray-700 text-white px-3 py-1 rounded text-sm"
+        >
           Previous
         </button>
         <div className="text-center">
           <div className="font-bold">{format(weekStartDate, "MMMM yyyy")}</div>
-          <div className="text-xs text-gray-400">Week of {format(weekStartDate, "MM/dd")}</div>
+          <div className="text-xs text-gray-400">
+            Week of {format(weekStartDate, "MM/dd")}
+          </div>
         </div>
-        <button onClick={handleNextWeek} className="bg-gray-700 text-white px-3 py-1 rounded text-sm">
+        <button
+          onClick={handleNextWeek}
+          className="bg-gray-700 text-white px-3 py-1 rounded text-sm"
+        >
           Next
         </button>
       </div>
@@ -216,7 +221,7 @@ export default function VerticalCalendar({
         Today
       </button>
 
-      {/* Only show if user not a member */}
+      {/* Show create button if userRole != 'member' */}
       {userRole !== "member" && (
         <button
           onClick={() => setWizardOpen(true)}
@@ -226,11 +231,12 @@ export default function VerticalCalendar({
         </button>
       )}
 
+      {/* Container that includes horizontal lines (behind) + columns (front) */}
       <div className="relative">
         {/* Horizontal lines behind day columns */}
         <div className="absolute w-full h-full top-0 left-14 pointer-events-none">
           {timeLabels.map((lbl, idx) => {
-            const topPos = idx * 30; // each label = 30px tall
+            const topPos = idx * 30;
             return (
               <div
                 key={lbl}
@@ -241,7 +247,6 @@ export default function VerticalCalendar({
           })}
         </div>
 
-        {/* Flex container with left axis + 7 columns */}
         <div className="flex">
           {/* Left axis for time labels */}
           <div className="w-14 flex flex-col">
@@ -273,20 +278,20 @@ export default function VerticalCalendar({
                   {format(dayDate, "EEE, MM/dd")}
                 </div>
 
-                {/* Render each class in this day */}
                 {daySchedules.map((cls) => {
                   const st = parseISO(cls.start_time);
                   const et = parseISO(cls.end_time);
                   if (!isValid(st) || !isValid(et)) return null;
 
-                  const minutesFromStart = differenceInMinutes(st, addDays(weekStartDate, dayIndex)) - DAY_START_HOUR * 60;
+                  const minutesFromStart =
+                    differenceInMinutes(st, addDays(weekStartDate, dayIndex)) - DAY_START_HOUR * 60;
                   const duration = differenceInMinutes(et, st);
 
                   return (
                     <div
                       key={cls.id}
-                      draggable={userRole !== "member"} // only draggable if not a member
-                      onDragStart={(e) => onDragStart(e, cls)}
+                      draggable={userRole !== "member"}
+                      onDragStart={(evt) => onDragStart(evt, cls)}
                       style={{
                         top: `${minutesFromStart}px`,
                         height: `${duration}px`,
@@ -317,7 +322,7 @@ export default function VerticalCalendar({
         </div>
       </div>
 
-      {/* Registration Drawer (opened on class click) */}
+      {/* Registration Drawer */}
       {selectedClass && (
         <ClassRegistrationDrawer
           isOpen={isRegistrationOpen}
@@ -328,15 +333,14 @@ export default function VerticalCalendar({
         />
       )}
 
-      {/* Wizard Drawer for creating classes, only if user is not a member */}
+      {/* Wizard Drawer (create classes). Only if not a member */}
       {isWizardOpen && userRole !== "member" && (
         <ClassWizardDrawer
           isOpen={isWizardOpen}
           onClose={() => setWizardOpen(false)}
           currentGymId={currentGymId}
           refreshSchedules={refreshSchedules}
-          // Optionally pass userRole if your wizard needs to block 'member'
-          userRole={userRole}
+          userRole={userRole} // if you want checks in the wizard
         />
       )}
     </div>
