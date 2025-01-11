@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { addDays, addWeeks, format } from "date-fns";
+import { addWeeks, format } from "date-fns";
 
 interface ClassWizardDrawerProps {
   isOpen: boolean;
