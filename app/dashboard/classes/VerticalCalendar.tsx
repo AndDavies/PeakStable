@@ -109,19 +109,19 @@ export default function VerticalCalendar({
     setRegistrationOpen(true);
   }
 
-  // 6) DRAG & DROP: only active if userRole !== 'member'.
-  //    Hooks remain top-level; these are just event handlers.
-  function onDragStart(e: React.DragEvent<HTMLDivElement>, cls: ClassSchedule) {
-    if (userRole === "member") return; // members can't drag
-    e.dataTransfer.setData("text/plain", JSON.stringify(cls));
-  }
+//   // 6) DRAG & DROP: only active if userRole !== 'member'.
+//   //    Hooks remain top-level; these are just event handlers.
+//   function onDragStart(e: React.DragEvent<HTMLDivElement>, cls: ClassSchedule) {
+//     if (userRole === "member") return; // members can't drag
+//     e.dataTransfer.setData("text/plain", JSON.stringify(cls));
+//   }
 
-  function onDragOver(e: React.DragEvent<HTMLDivElement>) {
-    // Only allow if user is not 'member'
-    if (userRole !== "member") {
-      e.preventDefault();
-    }
-  }
+//   function onDragOver(e: React.DragEvent<HTMLDivElement>) {
+//     // Only allow if user is not 'member'
+//     if (userRole !== "member") {
+//       e.preventDefault();
+//     }
+//   }
 
   async function onDrop(e: React.DragEvent<HTMLDivElement>, dayIndex: number) {
     if (userRole === "member") return;
@@ -269,7 +269,7 @@ export default function VerticalCalendar({
             return (
               <div
                 key={dayIndex}
-                onDragOver={onDragOver}
+                //onDragOver={onDragOver}
                 onDrop={(e) => onDrop(e, dayIndex)}
                 className="flex-1 border-l border-gray-700 relative"
                 style={{ minHeight: `${TOTAL_MINUTES}px` }}
@@ -291,7 +291,7 @@ export default function VerticalCalendar({
                     <div
                       key={cls.id}
                       draggable={userRole !== "member"}
-                      onDragStart={(evt) => onDragStart(evt, cls)}
+                      //onDragStart={(evt) => onDragStart(evt, cls)}
                       style={{
                         top: `${minutesFromStart}px`,
                         height: `${duration}px`,
