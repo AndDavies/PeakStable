@@ -19,13 +19,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       <main 
         className="
           flex-1 w-full 
-          px-4 py-4 
-          sm:px-6 sm:py-6 
-          md:px-8 md:py-8 
-          lg:px-10 lg:py-10 
-          xl:px-12 xl:py-12
           overflow-hidden
-        "
+          "
       >
         {children}
         <Toaster position="top-right" reverseOrder={false} />

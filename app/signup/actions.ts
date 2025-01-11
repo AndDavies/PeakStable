@@ -42,6 +42,9 @@ export async function signup(formData: FormData) {
   console.log("User signed up successfully:", signUpData.user);
 
   // 2) Insert into 'profiles' table
+  const defaultRole = "member";
+  const testGymId = "f5731c57-4206-43a7-bce1-583f2a72238e"; // For testing purposes
+
   console.log("Inserting profile data for user:", signUpData.user.id);
   const { error: profileError } = await supabase
     .from("profiles")
@@ -49,7 +52,9 @@ export async function signup(formData: FormData) {
       user_id: signUpData.user.id,
       first_name: firstName,
       last_name: lastName,
-      email
+      email,
+      role: defaultRole,
+      current_gym_id: testGymId // For testing purposes, remove this later
     });
 
   if (profileError) {
